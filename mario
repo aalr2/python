@@ -1,0 +1,521 @@
+#Aisha Al-Remaihi
+#aremaihi
+#mario game
+
+from pygame import *
+import pygame,time, sys
+from pygame.locals import*
+import math
+
+#load mario image
+#https://www.freepngimg.com/png/20698-mario-transparent-background
+mario = pygame.image.load('mario.png')
+
+#load pip image
+#https://enterpriseengineeringnetwork.org/img/get
+pip = pygame.image.load("pip.png")
+
+#set the icon to mario image
+pygame.display.set_icon(mario)
+
+size = [600,600]
+screen = pygame.display.set_mode(size)
+
+#change the cation/ title to "Mario"
+pygame.display.set_caption('Mario')
+
+black = (0,0,0)
+white = (255,255,255)
+purple = (220,64,220)
+yellow  = (255,255,0)
+blue = (0,0,255)
+
+#Load a music file
+#resource: https://www.youtube.com/watch?v=wf0Ml6ppYGA
+pygame.mixer.init()
+pygame.mixer.music.load('mario.mp3')
+pygame.mixer.music.play(-1, 0.0)
+
+X = 600
+Y = 600
+display_surface = pygame.display.set_mode((X, Y ))
+pygame.font.init()
+font = pygame.font.SysFont("arial", 25, bold=True)
+
+background = pygame.Surface(screen.get_size())
+background = background.convert()
+background.fill(black)
+
+#Define maze class that will hold the bricks and walls
+class Maze(pygame.sprite.Sprite):
+    #parameters: the color of the maze, width, height,
+    #and x, y position
+    def __init__(self,x,y,width,height, color):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface([width, height])
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+        self.rect.top = y
+        self.rect.left = x
+
+def DrawWallsBricks(spritesList):
+    #surrounded walls
+    ListOfWalls = pygame.sprite.RenderPlain()
+    #bricks to jump on
+    ListOfBricks = pygame.sprite.RenderPlain()
+    #[x position, y position, width, height]
+    walls = [ [0,0,5,595],
+              [0,0,595,5],
+              [0,595,606,5],
+              [595,0,5,606],
+              [5,510,70,15],
+              [500,100,120,15],
+              [220,390,200,15],
+              [240,240,100,15],
+              [324,300,70,15],
+              [480,360,76,15],
+              [180,450,200,15],
+              [120,540,126,15],
+              [360,540,126,15],
+              [100,300,150,15],
+              [5,150,100,15],
+              [400,180,150,15],
+              [200,120,100,15]     
+            ]
+    coins_list = pygame.sprite.RenderPlain()
+    #create the walls, and add it to the list
+    for item in walls[:4]:
+        wall = Maze(item[0],item[1],item[2],item[3],blue)
+        ListOfWalls.add(wall)
+        spritesList.add(wall)
+        
+    #create bricks
+    for item in walls[4:]:
+        wall = Maze(item[0],item[1],item[2],item[3],white)
+        ListOfBricks.add(wall)
+        spritesList.add(wall)
+    return walls, ListOfWalls, ListOfBricks
+
+#Mario lives     
+playerLives = pygame.transform.scale(mario, (25, 25))
+playerLives.set_colorkey(black)
+
+#Coins to be collected by the player
+class Coins(pygame.sprite.Sprite):
+    #color = the color of the coins, 
+    #x and y position
+    def __init__(self, color, width, height):
+        pygame.sprite.Sprite.__init__(self) 
+        self.image = pygame.Surface([width, height])
+        self.image.fill(white)
+        self.image.set_colorkey(white)
+        #draw a round shape inside a rectangle
+        pygame.draw.ellipse(self.image,color,[0,0,width,height])
+        self.rect = self.image.get_rect()
+        
+#draw mario lives    
+def drawLives(screen, x, y, lives, image):
+    for i in range(lives):
+        img_rect = image.get_rect()
+        img_rect.x = x + 30 * i
+        img_rect.y = y
+        screen.blit(image, img_rect)
+
+##class Pip(pygame.sprite.Sprite):
+##    def __init__(self,pip, x, y):
+##        pygame.sprite.Sprite.__init__(self)
+##        self.image = pygame.image.load(filename).convert()
+##        self.rect = self.image.get_rect()
+##        #piphit = pygame.sprite.spritecollide(mario, pipcollide, True)
+        
+        
+class Player(pygame.sprite.Sprite):
+    speed_x=0
+    speed_y=0
+    def __init__(self,x,y, filename):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load(filename).convert()
+        self.rect = self.image.get_rect()
+        self.rect.top = y
+        self.rect.left = x
+        self.last_x_pos = x
+        self.last_y_pos = y
+        self.lives = 3
+        self.isjump = 0
+        self.v = 8
+        self.m = 3
+    
+    def jump(self):
+        self.isjump = 1
+        
+    #jumping method: https://pythonspot.com/jump-and-run-in-pygame/
+    def update(self):
+        if self.isjump:
+        # Calculate force (F). F = 0.5 * mass * velocity^2.
+            if self.v > 0:
+                F = ( 0.5 * self.m * (self.v*self.v) )
+            else:
+                F = -( 0.5 * self.m * (self.v*self.v) )
+            # Change position
+            self.speed_x = self.speed_x - F
+            # Change velocity
+            self.v = self.v - 1
+            if self.y >= 500:
+                self.y = 500
+                self.isjump = 0
+                self.v = 8
+
+    def prevdirection(self):
+        self.last_x_pos = self.speed_x
+        self.last_y_pos = self.speed_y
+
+    def changespeed(self,x,y):
+        self.speed_x += x
+        self.speed_y += y
+          
+    def updatePosition(self,walls,bricks):
+        F = -( 0.5 * self.m * (self.v*self.v) )
+        if self.isjump:
+        # Calculate force (F). F = 0.5 * mass * velocity^2.
+            if self.v > 0:
+                F = ( 0.5 * self.m * (self.v*self.v) )
+            else:
+                F = -( 0.5 * self.m * (self.v*self.v) )
+            # Change velocity
+            self.v = self.v - 1
+        old_x_pos = self.rect.left
+        new_x_pos = old_x_pos + self.speed_x
+        last_x_pos = old_x_pos + self.last_x_pos
+        self.rect.left = new_x_pos
+        
+        old_y_pos = self.rect.top
+        new_y_pos = old_y_pos + self.speed_y - F
+        last_y_pos = old_y_pos + self.last_y_pos
+
+        #collision
+        collideX = pygame.sprite.spritecollide(self, bricks, False)
+        collideXwall = pygame.sprite.spritecollide(self, walls, False)
+        
+        if collideX and not collideXwall:
+            self.rect.left = old_x_pos
+            self.isjump = 0
+            self.v = 5
+        elif collideXwall:
+            self.rect.left = marioX
+            self.rect.top = marioY
+            self.isjump = 0
+            self.v = 5
+            self.lives -= 1
+        else:
+            self.rect.top = new_y_pos
+            collideY = pygame.sprite.spritecollide(self, bricks, False)
+            collideYwall = pygame.sprite.spritecollide(self, walls, False)
+            
+            if collideY and not collideYwall:
+                self.rect.top = old_y_pos
+                self.isjump = 0
+                self.v = 5
+                
+            elif collideYwall:
+                self.rect.left = marioX
+                self.rect.top = marioY
+                self.isjump = 0
+                self.v = 5
+                self.lives-=1
+            else:
+                self.rect.top = new_y_pos
+                
+     
+pygame.init()
+clock = pygame.time.Clock()
+pygame.font.init()
+
+#specify Mario's initial poisition
+marioX = 25 #Width
+marioY = 400 #mario height
+
+def startGame(marioo):
+    spritesList = pygame.sprite.RenderPlain()
+    walls, ListOfWalls, ListOfBricks = DrawWallsBricks(spritesList)
+    marioCollide = pygame.sprite.RenderPlain()
+    coins_list = pygame.sprite.RenderPlain()
+    #pipcollide = pygame.sprite.RenderPlain()
+
+    mario = Player( marioX, marioY, "mario.png" )
+    #pip = Pip(510, 50, "pip.png")
+   
+    if marioo is not None: 
+        mario.lives = marioo.lives
+    spritesList.add(mario)
+    marioCollide.add(mario)
+    #pipcollide.add(pip)
+
+    #draw coins
+    for w in walls[4:]: # w = [x,y,width,height]
+        coins_In_The_Bricks = Coins(purple, 12, 12)
+        coins_In_The_Bricks.rect.x = w[0]+10
+        coins_In_The_Bricks.rect.y = w[1]-30
+        coins_list.add(coins_In_The_Bricks)
+        spritesList.add(coins_In_The_Bricks)
+    numberOfCoins = len(coins_list)
+    score = 0
+    start = False
+    i = 0
+    frame_count = 60
+    frame_rate = 10
+    start_time = 60
+    while start == False:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                start = True
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    mario.changespeed(-30,0)
+                if event.key == pygame.K_RIGHT:           
+                    mario.changespeed(30,0)
+                if event.key == pygame.K_UP:
+                    mario.changespeed(0,-30)
+                if event.key == pygame.K_DOWN:
+                    mario.changespeed(0,30)
+    
+            if event.type == pygame.KEYUP:
+                if event.key == pygame.K_LEFT:
+                    mario.changespeed(30,0)
+                if event.key == pygame.K_RIGHT:
+                    mario.changespeed(-30,0)
+                if event.key == pygame.K_UP:
+                    mario.changespeed(0,30)
+                if event.key == pygame.K_DOWN:
+                    mario.changespeed(0,-30)
+                    
+            if event.type == pygame.KEYDOWN:
+                if(event.key == pygame.K_SPACE):
+                    mario.jump()
+
+        mario.updatePosition(ListOfWalls, ListOfBricks)
+        Hit_coins = pygame.sprite.spritecollide(mario, coins_list, True)
+        #piphit = pygame.sprite.spritecollide(pip, mario, True)
+        
+        # Check the list of collisions.
+        if len(Hit_coins) > 0:
+            score +=len(Hit_coins)        
+        screen.fill(black)
+        ListOfWalls.draw(screen)
+        ListOfBricks.draw(screen)
+        spritesList.draw(screen)
+        drawLives(screen, 600-100, 5, mario.lives, playerLives)
+        text=font.render("Score: "+str(score)+" out of "+str(numberOfCoins),\
+         True, white)
+        screen.blit(text, [10, 10])
+
+        if score == numberOfCoins:
+            playGame("Congrats! you won the game",230,spritesList,marioCollide,ListOfWalls)
+            
+        #coordinates of pip
+        display_surface.blit(pip, (510, 50))
+        pygame.display.flip()
+        if mario.lives == 0:
+            playGame("Ops! Game Over!",230,spritesList,marioCollide,ListOfWalls)
+            
+        #Countdown resource: http://programarcadegames.com/python_examples/f.php?file=timer.py
+        color = (255, 255, 255)
+        total_sec = frame_count // frame_rate #seconds left
+        seconds = total_sec % 60
+        total_sec = start_time - (frame_count//frame_rate) + 6
+        total_mins = total_sec//60 # minutes left
+        if total_sec > 0:
+            text = font.render(("Time left: "+str(total_sec)), True, color)
+            screen.blit(text, (350, 10))
+            pygame.display.flip()
+            screen.fill((20,20,20))
+            #time.sleep(1)#making the time interval of the loop 1sec
+        else:
+            total_sec = 0
+            playGame("Ops! Time over!",230,spritesList,marioCollide,ListOfWalls)
+            screen.blit(text, (200, 200))
+            pygame.display.flip()
+            screen.fill((20,20,20))
+        frame_count += 1
+        clock.tick(frame_rate)
+   
+#log in idea: https://python-forum.io/Thread-Login-System
+account = input("Do you have an acount? yes/no: ")
+if account == "no":
+    while True:
+        username  = input("Enter a username:")
+        password  = input("Enter a password:")
+        password1 = input("Confirm password:")
+        if password == password1:
+            file = open(username+".txt", "w")
+            file.write(username+":"+password)
+            file.close()
+            account = "yes"
+            break
+        print("Passwords do not match!")
+ 
+if account == "yes":
+    while True:
+        login1 = input("Login:")
+        login2 = input("Password:")
+        file = open(login1+".txt", "r")
+        data = file.readline()
+        file.close()
+        if data == login1+":"+login2:
+            print("Welcome " + str(login1))
+            break
+        print("Incorrect username or password.")      
+# Instruction Page 
+done = False
+clock = pygame.time.Clock()
+font = pygame.font.Font(None, 25)
+display_instructions = True
+instructionPage = 1
+
+#https://pnghunter.com/png/super-mario-game/
+yelloww = pygame.image.load('char1.png')
+#https://www.jing.fm/iclipt/u2q8y3w7e6i1o0i1/
+greenn = pygame.image.load('char2.png')
+#https://www.pinterest.com/pin/556194622703903670/
+bluee = pygame.image.load('char3.png')
+
+while not done and instructionPage:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            done = True
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            instructionPage += 1
+            if instructionPage == 4:
+                instructionPage = False
+    screen.fill(black)
+
+    if instructionPage == 1:
+        text = font.render("Welcome to Mario Game!", True, white)
+        screen.blit(text, [200, 10])
+
+        text = font.render("Here, you can choose your own character!", True, white)
+        screen.blit(text, [130, 50])
+
+        text = font.render("Characters: ", True, white)
+        screen.blit(text, [240, 100])
+
+        text = font.render("Koopa Troopa", True, white)
+        screen.blit(text, [100, 180])
+        yellowbig=pygame.image.load('char1largeimage.png')
+        screen.blit(yellowbig, (100, 200)) 
+        
+        text = font.render("Luigi", True, white)
+        screen.blit(text, [270, 180])
+        greenbig=pygame.image.load('char2largeimage.png')
+        screen.blit(greenbig, (250, 200)) 
+        
+        text = font.render("Yoshi", True, white)
+        screen.blit(text, [400, 180])
+        bluebig=pygame.image.load('char3largeimage.png')
+        screen.blit(bluebig, (350, 200))
+
+        text = font.render("Mario", True, white)
+        screen.blit(text, [280, 360])
+        mario=pygame.image.load('char4largeimage.png')
+        screen.blit(mario, (250, 400)) 
+        
+    if instructionPage == 2:
+        text = font.render("Instructions", True, purple)
+        screen.blit(text, [230, 50])
+        
+        text = font.render("Mario starts at the left side of the game.",\
+         True, white)
+        screen.blit(text, [10, 100])
+        
+        text = font.render("Move him by using the arrow keys.", True, white)
+        screen.blit(text, [10, 150])
+        
+        
+        text = font.render("The game is filled with coins to collect.",\
+         True, white)
+        screen.blit(text, [10, 200])
+        
+        text =font.render("Your score is based on the number of coins you collect", True, white)
+        screen.blit(text, [10, 250])
+        
+        
+        text = font.render("before getting hit by Goomba.", True, white)
+        screen.blit(text, [10, 300])
+        
+        
+        text = font.render("Move the player across the game and collect all coins to win!", True, white)
+        screen.blit(text, [10, 350])
+        
+
+        text = font.render("Click any place to go to the next screen", True, white)
+        screen.blit(text, [10, 400])
+ 
+    if instructionPage == 3:
+        text = font.render("Avoid the different monsters, especially Goomba", True, white)
+        screen.blit(text, [10, 50])
+ 
+        text = font.render("once you hit one monster, you will loss one life. You have 3 lives!!", True, white)
+        screen.blit(text, [10, 100])
+
+        text = font.render("HINT: Avoid walls!!", True, white)
+        screen.blit(text, [10, 150])
+
+        text = font.render("ANOTHER HINT: search behind objects", True, white)
+        screen.blit(text, [10, 200])
+        
+        text = font.render("Let's start?? click any place to start",True, purple)
+        screen.blit(text, [130, 450])
+    
+    clock.tick(10)
+    pygame.display.flip()
+    
+def playGame(message,position, spritesList,marioCollide,ListOfWalls):
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+                break
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    exit()
+                    break
+                if event.key == pygame.K_RETURN:
+                    del spritesList
+                    del marioCollide
+                    del ListOfWalls
+                    startGame(None)
+        text1=font.render(message, True, yellow)
+        screen.blit(text1, [230, 223])
+        text2=font.render("To play again, press ENTER.", True, purple)
+        screen.blit(text2, [190, 310])
+        text3=font.render("To quit, press ESCAPE.", True, purple)
+        screen.blit(text3, [210, 333])
+        pygame.display.flip()
+        clock.tick(10)
+        
+
+def restartGame(message,position,spritesList,
+ marioCollide,ListOfWalls, mario):
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    exit()
+                if event.key == pygame.K_RETURN:
+                    del spritesList
+                    del marioCollide
+                    del ListOfWalls
+                    startGame(mario)
+        text1=font.render(message, True, yellow)
+        screen.blit(text1, [230, 223])
+        pygame.display.flip()
+        clock.tick(10)
+
+startGame(None)
+pygame.quit()
+exit()
