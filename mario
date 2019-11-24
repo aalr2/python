@@ -339,32 +339,32 @@ def startGame(marioo):
         clock.tick(frame_rate)
    
 #log in idea: https://python-forum.io/Thread-Login-System
-account = input("Do you have an acount? yes/no: ")
-if account == "no":
-    while True:
-        username  = input("Enter a username:")
-        password  = input("Enter a password:")
-        password1 = input("Confirm password:")
-        if password == password1:
-            file = open(username+".txt", "w")
-            file.write(username+":"+password)
-            file.close()
-            account = "yes"
-            break
-        print("Passwords do not match!")
- 
-if account == "yes":
-    while True:
-        login1 = input("Login:")
-        login2 = input("Password:")
-        file = open(login1+".txt", "r")
-        data = file.readline()
-        file.close()
-        if data == login1+":"+login2:
-            print("Welcome " + str(login1))
-            break
-        print("Incorrect username or password.")      
-# Instruction Page 
+##account = input("Do you have an acount? yes/no: ")
+##if account == "no":
+##    while True:
+##        username  = input("Enter a username:")
+##        password  = input("Enter a password:")
+##        password1 = input("Confirm password:")
+##        if password == password1:
+##            file = open(username+".txt", "w")
+##            file.write(username+":"+password)
+##            file.close()
+##            account = "yes" 
+##            
+##        #print("Passwords do not match!")
+## 
+##if account == "yes":
+##    while True:
+##        login1 = input("Login:")
+##        login2 = input("Password:")
+##        file = open(login1+".txt", "r")
+##        data = file.readline()
+##        file.close()
+##        if data == login1+":"+login2:
+##            print("Welcome " + str(login1))
+##            
+##        #print("Incorrect username or password.")      
+### Instruction Page 
 done = False
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 25)
@@ -474,12 +474,10 @@ def playGame(message,position, spritesList,marioCollide,ListOfWalls):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
-                break
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     exit()
-                    break
                 if event.key == pygame.K_RETURN:
                     del spritesList
                     del marioCollide
