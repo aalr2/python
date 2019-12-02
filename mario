@@ -283,7 +283,6 @@ def startGame(lives):
     player.lives = lives
     spritesList.add(player)
     marioCollide.add(player)
-    currentLevel = 2
     ################################Level1###################################
     if currentLevel == 1 :
         for w in walls[4:]: # w = [x,y,width,height]
