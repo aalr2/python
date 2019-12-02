@@ -5,15 +5,18 @@
 from pygame import *
 import pygame,time, sys
 from pygame.locals import*
-import math
 
 #load mario image
 #https://www.freepngimg.com/png/20698-mario-transparent-background
 mario = pygame.image.load('mario.png')
 
-#load pip image
-#https://enterpriseengineeringnetwork.org/img/get
-pip = pygame.image.load("pip.png")
+#characters
+#https://pnghunter.com/png/super-mario-game/
+koopa = pygame.image.load('char1.png')
+#https://www.jing.fm/iclipt/u2q8y3w7e6i1o0i1/
+greenn = pygame.image.load('char2.png')
+#https://www.pinterest.com/pin/556194622703903670/
+bluee = pygame.image.load('char3.png')
 
 #set the icon to mario image
 pygame.display.set_icon(mario)
@@ -21,19 +24,24 @@ pygame.display.set_icon(mario)
 size = [600,600]
 screen = pygame.display.set_mode(size)
 
-#change the cation/ title to "Mario"
+#change the caption/ title to "Mario"
 pygame.display.set_caption('Mario')
 
+#colors
 black = (0,0,0)
 white = (255,255,255)
 purple = (220,64,220)
 yellow  = (255,255,0)
 blue = (0,0,255)
+green = (0,128,0)
+darkblue = (70,130,180)
+red = (220,20,60)
+lightGreen = 60,179,113
 
 #Load a music file
 #resource: https://www.youtube.com/watch?v=wf0Ml6ppYGA
 pygame.mixer.init()
-pygame.mixer.music.load('mario.mp3')
+pygame.mixer.music.load('marioMusic.mp3')
 pygame.mixer.music.play(-1, 0.0)
 
 X = 600
@@ -41,7 +49,7 @@ Y = 600
 display_surface = pygame.display.set_mode((X, Y ))
 pygame.font.init()
 font = pygame.font.SysFont("arial", 25, bold=True)
-
+font2 = pygame.font.SysFont("comicsansms", 20, bold=False)
 background = pygame.Surface(screen.get_size())
 background = background.convert()
 background.fill(black)
@@ -68,19 +76,19 @@ def DrawWallsBricks(spritesList):
               [0,0,595,5],
               [0,595,606,5],
               [595,0,5,606],
-              [5,510,70,15],
-              [500,100,120,15],
+              [5,510,100,15],
+              [500,100,160,15],
               [220,390,200,15],
-              [240,240,100,15],
-              [324,300,70,15],
-              [480,360,76,15],
+              [240,240,120,15],
+              [324,300,120,15],
+              [480,360,150,15],
               [180,450,200,15],
-              [120,540,126,15],
-              [360,540,126,15],
+              [120,540,130,15],
+              [360,540,130,15],
               [100,300,150,15],
-              [5,150,100,15],
+              [5,150,160,15],
               [400,180,150,15],
-              [200,120,100,15]     
+              [200,120,130,15]     
             ]
     coins_list = pygame.sprite.RenderPlain()
     #create the walls, and add it to the list
@@ -88,7 +96,6 @@ def DrawWallsBricks(spritesList):
         wall = Maze(item[0],item[1],item[2],item[3],blue)
         ListOfWalls.add(wall)
         spritesList.add(wall)
-        
     #create bricks
     for item in walls[4:]:
         wall = Maze(item[0],item[1],item[2],item[3],white)
@@ -96,7 +103,8 @@ def DrawWallsBricks(spritesList):
         spritesList.add(wall)
     return walls, ListOfWalls, ListOfBricks
 
-#Mario lives     
+#Mario lives
+global playerLives
 playerLives = pygame.transform.scale(mario, (25, 25))
 playerLives.set_colorkey(black)
 
@@ -113,21 +121,20 @@ class Coins(pygame.sprite.Sprite):
         pygame.draw.ellipse(self.image,color,[0,0,width,height])
         self.rect = self.image.get_rect()
         
+#The door in which the player need to reach to go to the next level
+def Door(spritesList):
+    door = pygame.sprite.RenderPlain()
+    door.add(Maze(550,50,30,50,red))
+    spritesList.add(door)
+    return door
+
 #draw mario lives    
 def drawLives(screen, x, y, lives, image):
     for i in range(lives):
         img_rect = image.get_rect()
         img_rect.x = x + 30 * i
         img_rect.y = y
-        screen.blit(image, img_rect)
-
-##class Pip(pygame.sprite.Sprite):
-##    def __init__(self,pip, x, y):
-##        pygame.sprite.Sprite.__init__(self)
-##        self.image = pygame.image.load(filename).convert()
-##        self.rect = self.image.get_rect()
-##        #piphit = pygame.sprite.spritecollide(mario, pipcollide, True)
-        
+        screen.blit(image, img_rect)  
         
 class Player(pygame.sprite.Sprite):
     speed_x=0
@@ -136,6 +143,7 @@ class Player(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.image = pygame.image.load(filename).convert()
         self.rect = self.image.get_rect()
+        self.filename = filename
         self.rect.top = y
         self.rect.left = x
         self.last_x_pos = x
@@ -144,10 +152,8 @@ class Player(pygame.sprite.Sprite):
         self.isjump = 0
         self.v = 8
         self.m = 3
-    
     def jump(self):
         self.isjump = 1
-        
     #jumping method: https://pythonspot.com/jump-and-run-in-pygame/
     def update(self):
         if self.isjump:
@@ -164,19 +170,16 @@ class Player(pygame.sprite.Sprite):
                 self.y = 500
                 self.isjump = 0
                 self.v = 8
-
     def prevdirection(self):
         self.last_x_pos = self.speed_x
         self.last_y_pos = self.speed_y
-
     def changespeed(self,x,y):
         self.speed_x += x
-        self.speed_y += y
-          
-    def updatePosition(self,walls,bricks):
+        self.speed_y += y  
+    def updatePosition(self,walls,bricks, door):
         F = -( 0.5 * self.m * (self.v*self.v) )
         if self.isjump:
-        # Calculate force (F). F = 0.5 * mass * velocity^2.
+        # Calculate force (F) F = 0.5 * mass * velocity^2.
             if self.v > 0:
                 F = ( 0.5 * self.m * (self.v*self.v) )
             else:
@@ -187,15 +190,13 @@ class Player(pygame.sprite.Sprite):
         new_x_pos = old_x_pos + self.speed_x
         last_x_pos = old_x_pos + self.last_x_pos
         self.rect.left = new_x_pos
-        
         old_y_pos = self.rect.top
         new_y_pos = old_y_pos + self.speed_y - F
         last_y_pos = old_y_pos + self.last_y_pos
-
-        #collision
+        #collision with bricks, door and walls
         collideX = pygame.sprite.spritecollide(self, bricks, False)
+        enterdoor = pygame.sprite.spritecollide(self, door, False)
         collideXwall = pygame.sprite.spritecollide(self, walls, False)
-        
         if collideX and not collideXwall:
             self.rect.left = old_x_pos
             self.isjump = 0
@@ -207,15 +208,14 @@ class Player(pygame.sprite.Sprite):
             self.v = 5
             self.lives -= 1
         else:
+            self.rect.left = new_x_pos
             self.rect.top = new_y_pos
             collideY = pygame.sprite.spritecollide(self, bricks, False)
             collideYwall = pygame.sprite.spritecollide(self, walls, False)
-            
             if collideY and not collideYwall:
                 self.rect.top = old_y_pos
                 self.isjump = 0
                 self.v = 5
-                
             elif collideYwall:
                 self.rect.left = marioX
                 self.rect.top = marioY
@@ -223,266 +223,630 @@ class Player(pygame.sprite.Sprite):
                 self.v = 5
                 self.lives-=1
             else:
+                self.rect.left = new_x_pos
                 self.rect.top = new_y_pos
                 
-     
+class Monster(Player):
+    def monsterr(self,list,monster):
+        return monster
+      
+
 pygame.init()
 clock = pygame.time.Clock()
 pygame.font.init()
-
 #specify Mario's initial poisition
-marioX = 25 #Width
-marioY = 400 #mario height
+marioX = 25 #x position
+marioY = 400 #y position
 
-def startGame(marioo):
+global currentLevel
+global score
+global coinsCollected
+global character
+score = 0
+coinsCollected = 0
+currentLevel = 1
+character = []
+
+global player
+mario = Player( marioX, marioY, "mario.png" )
+player = Player( marioX, marioY, "mario.png" )
+
+def startGame(lives):
+    global currentLevel
+    global score
+    global coinsCollected
+    global character
+    global player
+    global playerLives
     spritesList = pygame.sprite.RenderPlain()
     walls, ListOfWalls, ListOfBricks = DrawWallsBricks(spritesList)
     marioCollide = pygame.sprite.RenderPlain()
     coins_list = pygame.sprite.RenderPlain()
-    #pipcollide = pygame.sprite.RenderPlain()
-
-    mario = Player( marioX, marioY, "mario.png" )
-    #pip = Pip(510, 50, "pip.png")
-   
-    if marioo is not None: 
-        mario.lives = marioo.lives
-    spritesList.add(mario)
-    marioCollide.add(mario)
-    #pipcollide.add(pip)
-
-    #draw coins
-    for w in walls[4:]: # w = [x,y,width,height]
-        coins_In_The_Bricks = Coins(purple, 12, 12)
-        coins_In_The_Bricks.rect.x = w[0]+10
-        coins_In_The_Bricks.rect.y = w[1]-30
-        coins_list.add(coins_In_The_Bricks)
-        spritesList.add(coins_In_The_Bricks)
-    numberOfCoins = len(coins_list)
-    score = 0
-    start = False
-    i = 0
-    frame_count = 60
-    frame_rate = 10
-    start_time = 60
-    while start == False:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                start = True
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    mario.changespeed(-30,0)
-                if event.key == pygame.K_RIGHT:           
-                    mario.changespeed(30,0)
-                if event.key == pygame.K_UP:
-                    mario.changespeed(0,-30)
-                if event.key == pygame.K_DOWN:
-                    mario.changespeed(0,30)
+    monster_list = pygame.sprite.RenderPlain()
+    door = Door(spritesList)
     
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_LEFT:
-                    mario.changespeed(30,0)
-                if event.key == pygame.K_RIGHT:
-                    mario.changespeed(-30,0)
-                if event.key == pygame.K_UP:
-                    mario.changespeed(0,30)
-                if event.key == pygame.K_DOWN:
-                    mario.changespeed(0,-30)
-                    
-            if event.type == pygame.KEYDOWN:
-                if(event.key == pygame.K_SPACE):
-                    mario.jump()
+    #characters
+    mario = Player( marioX, marioY, "mario.png" )
+    koopa  = Player( marioX, marioY, "char1.png" )
+    greenn = Player( marioX, marioY, "char2.png" )
+    bluee = Player( marioX, marioY, "char3.png" )
 
-        mario.updatePosition(ListOfWalls, ListOfBricks)
-        Hit_coins = pygame.sprite.spritecollide(mario, coins_list, True)
-        #piphit = pygame.sprite.spritecollide(pip, mario, True)
-        
-        # Check the list of collisions.
-        if len(Hit_coins) > 0:
-            score +=len(Hit_coins)        
-        screen.fill(black)
-        ListOfWalls.draw(screen)
-        ListOfBricks.draw(screen)
-        spritesList.draw(screen)
-        drawLives(screen, 600-100, 5, mario.lives, playerLives)
-        text=font.render("Score: "+str(score)+" out of "+str(numberOfCoins),\
-         True, white)
-        screen.blit(text, [10, 10])
+    #changing characters
+    if (player.filename == "mario.png"):
+        player = Player( marioX, marioY, "mario.png" )
+    elif (player.filename == "char1.png"):
+        player = Player( marioX, marioY, "char1.png" )
+    elif (player.filename == "char2.png"):
+        player = Player( marioX, marioY, "char2.png" )
+    else:
+        player = Player( marioX, marioY, "char3.png" )
+    player.lives = lives
+    spritesList.add(player)
+    marioCollide.add(player)
+    currentLevel = 2
+    ################################Level1###################################
+    if currentLevel == 1 :
+        for w in walls[4:]: # w = [x,y,width,height]
+            coins_In_The_Bricks = Coins(purple, 12, 12)
+            coins_In_The_Bricks.rect.x = w[0]+10
+            coins_In_The_Bricks.rect.y = w[1]-35
+            coins_list.add(coins_In_The_Bricks)
+            spritesList.add(coins_In_The_Bricks)
+        numberOfCoins = len(coins_list)
+        score = 0
+        start = False
+        i = 0
+        frame_count = 60
+        frame_rate = 10
+        #starting time for level 1
+        start_time = 80
+        while start == False:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    start = True
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        player.changespeed(-30,0)
+                    if event.key == pygame.K_RIGHT:
+                        player.changespeed(30,0)
+                    if event.key == pygame.K_UP:
+                        player.changespeed(0,-30)
+                    if event.key == pygame.K_DOWN:
+                        player.changespeed(0,30)
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_LEFT:
+                        player.changespeed(30,0)
+                    if event.key == pygame.K_RIGHT:
+                        player.changespeed(-30,0)
+                    if event.key == pygame.K_UP:
+                        player.changespeed(0,30)
+                    if event.key == pygame.K_DOWN:
+                        player.changespeed(0,-30)      
+                if event.type == pygame.KEYDOWN:
+                    if(event.key == pygame.K_SPACE):
+                        player.jump()
+            player.updatePosition(ListOfWalls, ListOfBricks, door)
+            #colliding with coins
+            Hit_coins = pygame.sprite.spritecollide(player, coins_list, True)              
+            # Check the list of collisions.
+            if len(Hit_coins) > 0:
+                score +=len(Hit_coins)        
+            screen.fill(black)
+            ListOfWalls.draw(screen)
+            ListOfBricks.draw(screen)
+            spritesList.draw(screen)
+            door.draw(screen)
+            drawLives(screen, 600-100, 5, player.lives, playerLives)
+            text=font.render("Score: "+str(score)+" out of "+str(numberOfCoins),\
+             True, white)
+            screen.blit(text, [10, 10])
+            coliissso = pygame.sprite.spritecollide(player, door, False)
+            if score == numberOfCoins and total_sec!= 0 and coliissso:
+                currentLevel = 2
+                coinsCollected += score
+                score = 0
+                playGame("You won Level 1!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+                pygame.display.flip()
+            if player.lives == 0:
+                coinsCollected += (score)
+                score = 0
+                playGame("Ops! Game Over!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+            #Countdown resource: http://programarcadegames.com/python_examples/f.php?file=timer.py
+            color = (255, 255, 255)
+            total_sec = frame_count // frame_rate #seconds left
+            seconds = total_sec % 60
+            total_sec = start_time - (frame_count//frame_rate) + 6
+            total_mins = total_sec//60 # minutes left
+            if total_sec > 0:
+                text = font.render(("Time left: "+str(total_sec)), True, color)
+                screen.blit(text, (350, 10))
+                pygame.display.flip()
+                screen.fill((20,20,20))
+            else:
+                total_sec = 0
+                playGame("Ops! Time over!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+                screen.blit(text, (200, 200))
+                pygame.display.flip()
+                screen.fill((20,20,20))
+            frame_count += 1
+            clock.tick(frame_rate)
+            
+    ################################Level2###################################
+    if currentLevel == 2 :
+        #https://www.hiclipart.com/search?clipart=goomba
+        goomba = Monster( marioX+180, 265, "goomba.jpg" )
+        monster_list.add(goomba)
+        spritesList.add(goomba)
+        #https://www.pinclipart.com/pindetail/ihTwbh_mario-bros-clipart-enemy-mario-bros-piranha-plant/
+        plant = Monster( marioX+420, 500, "plant.jpg" )
+        monster_list.add(plant)
+        spritesList.add(plant)
+        #https://en.wikipedia.org/wiki/Boo_(character)
+        boo = Monster( marioX+350,360, "boo.png" )
+        monster_list.add(boo)
+        spritesList.add(boo)
+        for w in walls[4:]: # w = [x,y,width,height]
+            coins_In_The_Bricks = Coins(blue, 12, 12)
+            coins_In_The_Bricks2 = Coins(purple, 12, 12)
+            coins_In_The_Bricks.rect.x = w[0]+10
+            coins_In_The_Bricks.rect.y = w[1]-30
+            
+            coins_In_The_Bricks2.rect.x = w[0]+50
+            coins_In_The_Bricks2.rect.y = w[1]-30
+            
+            coins_list.add(coins_In_The_Bricks)
+            spritesList.add(coins_In_The_Bricks)
 
-        if score == numberOfCoins:
-            playGame("Congrats! you won the game",230,spritesList,marioCollide,ListOfWalls)
+            coins_list.add(coins_In_The_Bricks2)
+            spritesList.add(coins_In_The_Bricks2)
+        numberOfCoins = len(coins_list)
+        score = 0
+        start = False
+        i = 0
+        frame_count = 60
+        frame_rate = 10
+        #starting time for level 2
+        start_time = 60
+        while start == False:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    start = True
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        player.changespeed(-30,0)
+                    if event.key == pygame.K_RIGHT:           
+                        player.changespeed(30,0)
+                    if event.key == pygame.K_UP:
+                        player.changespeed(0,-30)
+                    if event.key == pygame.K_DOWN:
+                        player.changespeed(0,30)
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_LEFT:
+                        player.changespeed(30,0)
+                    if event.key == pygame.K_RIGHT:
+                        player.changespeed(-30,0)
+                    if event.key == pygame.K_UP:
+                        player.changespeed(0,30)
+                    if event.key == pygame.K_DOWN:
+                        player.changespeed(0,-30)  
+                if event.type == pygame.KEYDOWN:
+                    if(event.key == pygame.K_SPACE):
+                        player.jump()
+            player.updatePosition(ListOfWalls, ListOfBricks, door)
+            Hit_coins = pygame.sprite.spritecollide(player, coins_list, True)
+            monsta_hit_list = pygame.sprite.spritecollide(player,monster_list, False)
+            if monsta_hit_list:
+                player.lives -=1
+                restartGame("monsters! You have "+str(player.lives)+" lives left",\
+            150,spritesList,coins_list,monster_list, marioCollide,\
+            ListOfWalls,player, door)
+            # Check the list of collisions.
+            if len(Hit_coins) > 0:
+                score +=len(Hit_coins)        
+            screen.fill(black)
+            ListOfWalls.draw(screen)
+            ListOfBricks.draw(screen)
+            spritesList.draw(screen)
+            monster_list.draw(screen)
+            drawLives(screen, 600-100, 5, player.lives, playerLives)
+            text=font.render("Score: "+str(score)+" out of "+str(numberOfCoins),\
+             True, white)
+            screen.blit(text, [10, 10])
+            coliissso = pygame.sprite.spritecollide(player, door, False)
+            if score == numberOfCoins and total_sec!= 0 and coliissso :
+                coinsCollected += score
+                score = 0
+                currentLevel = 3
+                playGame("You won Level 2!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+            monsta_hit_list = pygame.sprite.spritecollide(player,monster_list, False)
+            if player.lives == 0:
+                playGame("Ops! Game Over!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+            #Countdown resource: http://programarcadegames.com/python_examples/f.php?file=timer.py
+            color = (255, 255, 255)
+            total_sec = frame_count // frame_rate #seconds left
+            seconds = total_sec % 60
+            total_sec = start_time - (frame_count//frame_rate) + 6
+            total_mins = total_sec//60 # minutes left
+            if total_sec > 0:
+                text = font.render(("Time left: "+str(total_sec)), True, color)
+                screen.blit(text, (350, 10))
+                pygame.display.flip()
+                screen.fill((20,20,20))
+            else:
+                total_sec = 0
+                playGame("Ops! Time over!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+                screen.blit(text, (200, 200))
+                pygame.display.flip()
+                screen.fill((20,20,20))
+            frame_count += 1
+            clock.tick(frame_rate)
+    ################################Level3###################################
+    if currentLevel == 3 :
+        goomba = Monster( marioX+180, 270, "goomba.jpg" )
+        monster_list.add(goomba)
+        spritesList.add(goomba)
+
+        plant = Monster( 230, 510, "plant.jpg" )
+        monster_list.add(plant)
+        spritesList.add(plant)
+
+        #additional monsters
+        boo2 = Monster( 350, 350, "dragon.jpg" )
+        monster_list.add(boo2)
+        spritesList.add(boo2)
+
+        trap = Monster( 110, 125, "trap.jpg" )
+        monster_list.add(trap)
+        spritesList.add(trap)
+
+        plant2 = Monster( 520, 140, "plant2.jpg" )
+        monster_list.add(plant2)
+        spritesList.add(plant2)
+
+        player.lives = 3
+        for w in walls[4:]: # w = [x,y,width,height]
+            coins_In_The_Bricks = Coins(blue, 12, 12)
+            coins_In_The_Bricks2 = Coins(purple, 12, 12)
+            coins_In_The_Bricks3 = Coins(red, 12, 12)
             
-        #coordinates of pip
-        display_surface.blit(pip, (510, 50))
-        pygame.display.flip()
-        if mario.lives == 0:
-            playGame("Ops! Game Over!",230,spritesList,marioCollide,ListOfWalls)
+            coins_In_The_Bricks.rect.x = w[0]+10
+            coins_In_The_Bricks.rect.y = w[1]-30
+
+            coins_In_The_Bricks2.rect.x = w[0]+50
+            coins_In_The_Bricks2.rect.y = w[1]-30
+
+            #adding more coins
+            coins_In_The_Bricks3.rect.x = w[0]+80
+            coins_In_The_Bricks3.rect.y = w[1]-30
             
-        #Countdown resource: http://programarcadegames.com/python_examples/f.php?file=timer.py
-        color = (255, 255, 255)
-        total_sec = frame_count // frame_rate #seconds left
-        seconds = total_sec % 60
-        total_sec = start_time - (frame_count//frame_rate) + 6
-        total_mins = total_sec//60 # minutes left
-        if total_sec > 0:
-            text = font.render(("Time left: "+str(total_sec)), True, color)
-            screen.blit(text, (350, 10))
+            coins_list.add(coins_In_The_Bricks)
+            spritesList.add(coins_In_The_Bricks)
+
+            coins_list.add(coins_In_The_Bricks2)
+            spritesList.add(coins_In_The_Bricks2)
+
+            coins_list.add(coins_In_The_Bricks3)
+            spritesList.add(coins_In_The_Bricks3)
+        numberOfCoins = len(coins_list)
+        score = 0
+        start = False
+        i = 0
+        frame_count = 60
+        frame_rate = 10
+        #starting time for level3
+        start_time = 50
+        while start == False:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    start = True
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_LEFT:
+                        player.changespeed(-30,0)
+                    if event.key == pygame.K_RIGHT:           
+                        player.changespeed(30,0)
+                    if event.key == pygame.K_UP:
+                        player.changespeed(0,-30)
+                    if event.key == pygame.K_DOWN:
+                        player.changespeed(0,30)
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_LEFT:
+                        player.changespeed(30,0)
+                    if event.key == pygame.K_RIGHT:
+                        player.changespeed(-30,0)
+                    if event.key == pygame.K_UP:
+                        player.changespeed(0,30)
+                    if event.key == pygame.K_DOWN:
+                        player.changespeed(0,-30)     
+                if event.type == pygame.KEYDOWN:
+                    if(event.key == pygame.K_SPACE):
+                        player.jump()
+            player.updatePosition(ListOfWalls, ListOfBricks, door)
+            Hit_coins = pygame.sprite.spritecollide(player, coins_list, True)
+            monsta_hit_list = pygame.sprite.spritecollide(player,monster_list, False)
+            if monsta_hit_list:
+                player.lives -=1
+                restartGame("monsters! You have "+str(player.lives)+" lives left",\
+            150,spritesList,coins_list,monster_list, marioCollide,\
+            ListOfWalls,player, door)
+            
+            # Check the list of collisions.
+            if len(Hit_coins) > 0:
+                score +=len(Hit_coins)        
+            screen.fill(black)
+            ListOfWalls.draw(screen)
+            ListOfBricks.draw(screen)
+            spritesList.draw(screen)
+            monster_list.draw(screen)
+            drawLives(screen, 600-100, 5, player.lives, playerLives)
+            text=font.render("Score: "+str(score)+" out of "+str(numberOfCoins),\
+             True, white)
+            screen.blit(text, [10, 10])
+            coliissso = pygame.sprite.spritecollide(player, door, False)
+            if score == numberOfCoins and total_sec!= 0 and coliissso:
+                coinsCollected += score
+                score = 0
+                playGame("Congrats! you won the game",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
             pygame.display.flip()
-            screen.fill((20,20,20))
-            #time.sleep(1)#making the time interval of the loop 1sec
-        else:
-            total_sec = 0
-            playGame("Ops! Time over!",230,spritesList,marioCollide,ListOfWalls)
-            screen.blit(text, (200, 200))
-            pygame.display.flip()
-            screen.fill((20,20,20))
-        frame_count += 1
-        clock.tick(frame_rate)
+            if player.lives == 0:
+                playGame("Ops! Game Over!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+            #Countdown resource: http://programarcadegames.com/python_examples/f.php?file=timer.py
+            color = (255, 255, 255)
+            total_sec = frame_count // frame_rate #seconds left
+            seconds = total_sec % 60
+            total_sec = start_time - (frame_count//frame_rate) + 6
+            total_mins = total_sec//60 # minutes left
+            if total_sec > 0:
+                text = font.render(("Time left: "+str(total_sec)), True, color)
+                screen.blit(text, (350, 10))
+                pygame.display.flip()
+                screen.fill((20,20,20))
+            else:
+                total_sec = 0
+                playGame("Ops! Time over!",230,spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door)
+                screen.blit(text, (200, 200))
+                pygame.display.flip()
+                screen.fill((20,20,20))
+            frame_count += 1
+            clock.tick(frame_rate)
    
-#log in idea: https://python-forum.io/Thread-Login-System
-##account = input("Do you have an acount? yes/no: ")
-##if account == "no":
-##    while True:
-##        username  = input("Enter a username:")
-##        password  = input("Enter a password:")
-##        password1 = input("Confirm password:")
-##        if password == password1:
-##            file = open(username+".txt", "w")
-##            file.write(username+":"+password)
-##            file.close()
-##            account = "yes" 
-##            
-##        #print("Passwords do not match!")
-## 
-##if account == "yes":
-##    while True:
-##        login1 = input("Login:")
-##        login2 = input("Password:")
-##        file = open(login1+".txt", "r")
-##        data = file.readline()
-##        file.close()
-##        if data == login1+":"+login2:
-##            print("Welcome " + str(login1))
-##            
-##        #print("Incorrect username or password.")      
-### Instruction Page 
+#log in idea: https://python-forum.io/Thread-Login-System   
+global login1
+global password
+global flaggg
+flag = False
+flaggg = False 
+account = input("Do you have an acount? yes/no: ")
+if account == "no":
+    while not flag:
+        login1  = input("Enter a username:")
+        password  = input("Enter a password:")
+        password1 = input("Confirm password:")
+        character = []
+        if password == password1:
+            coinsCollected = 0
+            file = open(login1+".txt", "w")
+            #write: username: password: coinsCollected
+            file.write(login1+":"+password+ ":0")
+            file.close()
+            account = "yes" 
+            flag = True
+        else:
+            print("Passwords do not match!")
+ 
+if account == "yes":
+    while not flag:
+        login1 = input("Login:")
+        password = input("Password:")
+        file = open(login1+".txt", "r")
+        data = file.readline().split(":")
+        coinsCollected = int(data[2])
+        file.close()
+        character = data[3:]
+        if data[0] == login1 and password == data[1]:
+            print("Welcome " + str(login1))
+            flag = True
+        else:
+            print("Incorrect username or password.")
+        
+# Instruction Page 
 done = False
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 25)
 display_instructions = True
 instructionPage = 1
-
-#https://pnghunter.com/png/super-mario-game/
-yelloww = pygame.image.load('char1.png')
-#https://www.jing.fm/iclipt/u2q8y3w7e6i1o0i1/
-greenn = pygame.image.load('char2.png')
-#https://www.pinterest.com/pin/556194622703903670/
-bluee = pygame.image.load('char3.png')
-
 while not done and instructionPage:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             done = True
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            instructionPage += 1
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                instructionPage += 1
             if instructionPage == 4:
-                instructionPage = False
+                instructionPage = False         
     screen.fill(black)
-
+    #First page (choosing own character)
     if instructionPage == 1:
         text = font.render("Welcome to Mario Game!", True, white)
         screen.blit(text, [200, 10])
-
+        text = font.render("Player: " + login1 , True, white)
+        screen.blit(text, [20, 10])
+        text = font.render("Coins: " + str(coinsCollected) , True, white)
+        screen.blit(text, [450, 10])
         text = font.render("Here, you can choose your own character!", True, white)
         screen.blit(text, [130, 50])
-
         text = font.render("Characters: ", True, white)
-        screen.blit(text, [240, 100])
-
-        text = font.render("Koopa Troopa", True, white)
+        screen.blit(text, [240, 80])
+        text = font.render("Press r key to go to the next screen", True, white)
+        screen.blit(text, [130, 100])
+    ####################################################
+        text = font.render("Koopa Troopa" , True, white)
         screen.blit(text, [100, 180])
         yellowbig=pygame.image.load('char1largeimage.png')
-        screen.blit(yellowbig, (100, 200)) 
-        
+        screen.blit(yellowbig, (100, 200))
+        mouse = pygame.mouse.get_pos()
+        click = pygame.mouse.get_pressed()
+        if 120+100 > mouse[0] > 120 and (350 + 30) > mouse[1] > 350:
+            pygame.draw.rect(screen, yellow, (120,350,100,30))
+            #check if the button is clicked, and the player has >= coins
+            #to buy the character, if so, change the player.
+            if click[0] == 1 and coinsCollected >= 10 and "Koopa Troopa" not in character:
+                character += ["Koopa Troopa"]
+                #print("change the character to Koopa")
+                koopa = Player(  marioX, marioY, "char1.png" )
+                coinsCollected -= 10
+                #print(coinsCollected, character)
+            elif click[0] == 1 and "Koopa Troopa" in character:
+                player = Player(  marioX, marioY, "char1.png" )
+                playerLives = pygame.image.load('char1.png')
+        else:
+            pygame.draw.rect(screen, white, (120,350,100,30))
+        if "Koopa Troopa"in character:
+            text = font2.render("Click to choose", True, black)
+            screen.blit(text, (120,350,100,30))
+        else:
+            text = font2.render("10 coins.Buy?", True, black)
+            screen.blit(text, (120,350,100,30))
+    ########################################################
         text = font.render("Luigi", True, white)
         screen.blit(text, [270, 180])
         greenbig=pygame.image.load('char2largeimage.png')
-        screen.blit(greenbig, (250, 200)) 
-        
+        screen.blit(greenbig, (250, 200))
+        if 280+100 > mouse[0] > 280 and (350 + 30) > mouse[1] > 350:
+            pygame.draw.rect(screen, lightGreen, (280,350,100,30))
+            if click[0] == 1 and coinsCollected >= 15 and "Luigi" not in character:
+                character += ["Luigi"]
+                #print("change the character to Luigi")
+                greenn = Player(marioX, marioY, "char2.png" )
+                coinsCollected -= 15
+            elif click[0] == 1 and "Luigi" in character:
+                player = Player(marioX, marioY, "char2.png" )
+                playerLives = pygame.image.load('char2.png')    
+        else:
+            pygame.draw.rect(screen, white, (280,350,100,30))
+        if "Luigi" in character:
+            text = font2.render("Click to choose", True, black)
+            screen.blit(text, (280,350,100,30))
+        else:
+            text = font2.render("15 coins.Buy?", True, black)
+            screen.blit(text, (280,350,100,30))
+    ########################################################
         text = font.render("Yoshi", True, white)
         screen.blit(text, [400, 180])
         bluebig=pygame.image.load('char3largeimage.png')
         screen.blit(bluebig, (350, 200))
+        if 410+100 > mouse[0] > 410 and (350 + 30) > mouse[1] > 350:
+            pygame.draw.rect(screen, darkblue, (410,350,100,30))
+            if click[0] == 1 and coinsCollected >= 20 and "Yoshi" not in character:
+                character += ["Yoshi"]
+                #print("change the character to Yoshi")
+                bluee = Player(marioX, marioY, "char3.png" )
+                coinsCollected -= 20
+            elif click[0] == 1 and "Yoshi" in character:
+                player = Player(marioX, marioY, "char3.png" )
+                playerLives = pygame.image.load('char3.png')
+        else:
+            pygame.draw.rect(screen, white, (410,350,100,30))
+        if "Yoshi" in character:
+            text = font2.render("Click to choose", True, black)
+            screen.blit(text, (410,350,100,30))
+        else:
+            text = font2.render("20 coins.Buy?", True, black)
+            screen.blit(text, (410,350,100,30))
 
         text = font.render("Mario", True, white)
-        screen.blit(text, [280, 360])
+        screen.blit(text, [270, 400])
         mario=pygame.image.load('char4largeimage.png')
-        screen.blit(mario, (250, 400)) 
-        
+        screen.blit(mario, (250, 420))
+        if 350+100 > mouse[0] > 350 and (450 + 30) > mouse[1] > 450:
+            pygame.draw.rect(screen, red, (350,450,100,30))
+        else:
+            pygame.draw.rect(screen, white, (350,450,100,30))
+        text = font2.render("Defult character!", True, black)
+        screen.blit(text, (350,450,100,30))
+
+    ########################################################
+    #Second page (Instructions about how to play the game)
     if instructionPage == 2:
         text = font.render("Instructions", True, purple)
         screen.blit(text, [230, 50])
-        
         text = font.render("Mario starts at the left side of the game.",\
          True, white)
         screen.blit(text, [10, 100])
-        
         text = font.render("Move him by using the arrow keys.", True, white)
         screen.blit(text, [10, 150])
-        
-        
         text = font.render("The game is filled with coins to collect.",\
          True, white)
         screen.blit(text, [10, 200])
-        
         text =font.render("Your score is based on the number of coins you collect", True, white)
         screen.blit(text, [10, 250])
-        
-        
-        text = font.render("before getting hit by Goomba.", True, white)
-        screen.blit(text, [10, 300])
-        
-        
         text = font.render("Move the player across the game and collect all coins to win!", True, white)
         screen.blit(text, [10, 350])
-        
-
-        text = font.render("Click any place to go to the next screen", True, white)
+        text = font.render("Press r key to go to the next screen", True, white)
         screen.blit(text, [10, 400])
- 
+        #https://en.wikipedia.org/wiki/Mario
+        hiMario=pygame.image.load('hello.png')
+        screen.blit(hiMario, (450, 400))
+    ########################################################
+    #Third page (Instructions about how to play the game and hints)
     if instructionPage == 3:
-        text = font.render("Avoid the different monsters, especially Goomba", True, white)
+        text = font.render("Avoid the different monsters", True, white)
         screen.blit(text, [10, 50])
- 
-        text = font.render("once you hit one monster, you will loss one life. You have 3 lives!!", True, white)
+        text = font.render("Once you hit one monster, you will loss one life. You have 3 lives!!", True, white)
         screen.blit(text, [10, 100])
-
         text = font.render("HINT: Avoid walls!!", True, white)
         screen.blit(text, [10, 150])
-
-        text = font.render("ANOTHER HINT: search behind objects", True, white)
+        text = font.render("ANOTHER HINT: Search behind objects", True, white)
         screen.blit(text, [10, 200])
-        
-        text = font.render("Let's start?? click any place to start",True, purple)
-        screen.blit(text, [130, 450])
-    
+        text = font.render("Let's start?? Press r to start",True, purple)
+        screen.blit(text, [200, 450])
+        #https://sonic.fandom.com/wiki/Mario
+        start=pygame.image.load('letsstart.png')
+        screen.blit(start, (240, 240))
     clock.tick(10)
     pygame.display.flip()
-    
-def playGame(message,position, spritesList,marioCollide,ListOfWalls):
-    while True:
+       
+def playGame(message,position, spritesList,marioCollide,ListOfWalls, monster_list, coins_list, door):
+    global coinsCollected
+    global login1
+    global password
+    global character
+    global player
+    global flaggg
+    while not flaggg:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                file = open(login1+".txt", "w")
+                #print(coinsCollected, character)
+                text = login1+":"+password+":"+ str(coinsCollected)
+                for c in character:
+                    if c != "":
+                        text+=":"+c
+                file.write(text)
+                file.close()
                 pygame.quit()
+                flaggg = True
                 exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    file = open(login1+".txt", "w")
+                    #print(coinsCollected, character)
+                    text = login1+":"+password+":"+ str(coinsCollected)
+                    for c in character:
+                        if c != "":
+                            text+=":"+c
+                    file.write(text)
+                    file.close()
                     pygame.quit()
+                    flaggg = True
                     exit()
                 if event.key == pygame.K_RETURN:
                     del spritesList
                     del marioCollide
+                    del coins_list
                     del ListOfWalls
-                    startGame(None)
+                    del monster_list
+                    del door
+                    startGame(3)  
         text1=font.render(message, True, yellow)
         screen.blit(text1, [230, 223])
         text2=font.render("To play again, press ENTER.", True, purple)
@@ -491,29 +855,64 @@ def playGame(message,position, spritesList,marioCollide,ListOfWalls):
         screen.blit(text3, [210, 333])
         pygame.display.flip()
         clock.tick(10)
-        
-
-def restartGame(message,position,spritesList,
- marioCollide,ListOfWalls, mario):
-    while True:
+   
+def restartGame(message,position,spritesList,coins_list,monster_list,marioCollide,ListOfWalls, player, door):
+    global coinsCollected
+    global login1
+    global password
+    global character
+    global flaggg
+    while not flaggg:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                file = open(login1+".txt", "w")
+                #print(coinsCollected, character)
+                text = login1+":"+password+":"+ str(coinsCollected)
+                for c in character:
+                    if c != "":
+                        text+=":"+c
+                file.write(text)
+                file.close()
                 pygame.quit()
+                flaggg = True
                 exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    file = open(login1+".txt", "w")
+                    #print(coinsCollected, character)
+                    text = login1+":"+password+":"+ str(coinsCollected)
+                    for c in character:
+                        if c != "":
+                            text+=":"+c
+                    file.write(text)
+                    file.close()
                     pygame.quit()
+                    flaggg = True
                     exit()
                 if event.key == pygame.K_RETURN:
                     del spritesList
+                    del coins_list
+                    del monster_list
                     del marioCollide
                     del ListOfWalls
-                    startGame(mario)
+                    del door
+                    startGame(player.lives)
         text1=font.render(message, True, yellow)
         screen.blit(text1, [230, 223])
+        text2=font.render("To play again, press ENTER.", True, yellow)
+        screen.blit(text2, [190, 310])
+        text3=font.render("To quit, press ESCAPE.", True, yellow)
+        screen.blit(text3, [210, 333])
         pygame.display.flip()
         clock.tick(10)
-
-startGame(None)
+startGame(3)
 pygame.quit()
+file = open(login1+".txt", "w")
+#print(coinsCollected, character)
+text = login1+":"+password+":"+ str(coinsCollected)
+for c in character:
+    if c != "":
+        text+=":"+c
+file.write(text)
+file.close()
 exit()
