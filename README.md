@@ -12,7 +12,7 @@ I provided all images and resources needed to run the code.
 
 Once you run the code you need to create your own account and password.
 
-After you enter your username and password, a window will show up which you can buy and upgrade your character. At the beginning you default character is Mario. Collect coins to upgrade your character!
+After you enter your username and password, it will save your username, password, coins collected and your characters that you bought in a text file. Then, a window will show up which you can buy and upgrade your character. At the beginning you default character is Mario. Collect coins to upgrade your character!
 
 One you collect at least 10 coins, you can buy a new character!
 
